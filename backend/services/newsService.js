@@ -5,7 +5,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function fetchNews(category) {
   // Example: fetch raw articles from your source
-  const res = await fetch('https://newsapi.org/v2/top-headlines?country=us&apiKey=' + process.env.NEWS_~API_KEY);
+  const res = await fetch('https://newsapi.org/v2/top-headlines?country=us&apiKey=' + process.env.NEWS_API_KEY);
   const data = await res.json();
 
   const articles = data.articles.map(article => ({
