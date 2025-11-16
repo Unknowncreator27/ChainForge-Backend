@@ -1,40 +1,50 @@
-import axios from 'axios';
+import fetch from 'node-fetch';
+import OpenAI from 'openai';
 
-const MOCK_ARTICLES = [
-  { title: "Apple hits new peak", summary: "Apple stock reaches a new high...", source: "Bloomberg", publishedAgo: "2h ago", imgUrl: null, url: null, category: "Tech" },
-  { title: "Oil prices rise", summary: "Global oil prices see an increase...", source: "Reuters", publishedAgo: "4h ago", imgUrl: null, url: null, category: "Markets" },
-  { title: "Tech mergers 2025", summary: "Major tech mergers announced...", source: "TechCrunch", publishedAgo: "6h ago", imgUrl: null, url: null, category: "Tech" },
-];
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export const fetchNews = async (category = 'All') => {
-  const API_KEY = process.env.NEWS_API_KEY;
+export async function fetchNews(category) {
+  // Example: fetch raw articles from your source
+  const res = await fetch('https://newsapi.org/v2/top-headlines?country=us&apiKey=' + process.env.NEWSAPI_KEY);
+  const data = await res.json();
 
-  if (!API_KEY) {
-    console.warn("NEWS_API_KEY not set. Returning mock data.");
-    return category === 'All' ? MOCK_ARTICLES : MOCK_ARTICLES.filter(a => a.category === category);
-  }
+  const articles = data.articles.map(article => ({
+    title: article.title,
+    summary: article.description,
+    source: article.source.name,
+    publishedAgo: article.publishedAt,
+    imgUrl: article.urlToImage,
+    url: article.url,
+  }));
 
-  try {
-    const url = `https://newsapi.org/v2/top-headlines?category=business&language=en&apiKey=${API_KEY}`;
-    const response = await axios.get(url);
+  // Generate AI summaries in parallel
+  const articlesWithSummaries = await Promise.all(
+    articles.map(async article => {
+      try {
+        const prompt = `
+        Summarize this article in 2-3 concise sentences:
 
-    let articles = response.data.articles.map(a => ({
-      title: a.title,
-      summary: a.description,
-      source: a.source.name,
-      publishedAgo: a.publishedAt,
-      imgUrl: a.urlToImage,
-      url: a.url,
-      category: 'Business', // Can map based on your API
-    }));
+        ${article.summary || article.title}
+        `;
 
-    if (category !== 'All') {
-      articles = articles.filter(a => a.category.toLowerCase() === category.toLowerCase());
-    }
+        const aiResponse = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [
+            { role: "system", content: "You are a helpful news summarizer." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.7,
+        });
 
-    return articles;
-  } catch (err) {
-    console.error("Error fetching from news API. Returning mock data.", err);
-    return category === 'All' ? MOCK_ARTICLES : MOCK_ARTICLES.filter(a => a.category === category);
-  }
-};
+        article.aiSummary = aiResponse.choices[0].message.content.trim();
+      } catch (err) {
+        console.error("AI summary error:", err.message);
+        article.aiSummary = article.summary || "";
+      }
+
+      return article;
+    })
+  );
+
+  return articlesWithSummaries;
+}

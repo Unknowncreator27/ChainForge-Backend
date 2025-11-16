@@ -3,6 +3,7 @@ import { getArticles } from '../controllers/articlesController.js';
 
 const router = express.Router();
 
-router.get('/', getArticles); // /api/articles?category=Tech
+// GET /api/articles?category=Tech
+router.get('/', getArticles);
 
 export default router;
