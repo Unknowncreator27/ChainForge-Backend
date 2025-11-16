@@ -17,5 +17,5 @@ app.use('/api/articles', articlesRouter);
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Service Running on host ${HOST}`)
+  
 });
